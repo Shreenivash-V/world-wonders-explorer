@@ -1,9 +1,12 @@
 const container = document.getElementById("wondersContainer");
 const searchInput = document.getElementById("searchInput");
+const loader = document.getElementById("loader");
 
 let wonders = [];
 
 async function loadWonders() {
+
+    loader.style.display = "block";
 
     try {
 
@@ -11,29 +14,33 @@ async function loadWonders() {
             "https://www.world-wonders-api.org/v0/wonders/"
         );
 
-        const data = await response.json();
+        if (!response.ok) {
+            throw new Error("Failed to fetch data");
+        }
 
-        wonders = data;
+        wonders = await response.json();
 
         renderWonders(wonders);
 
     }
-    catch(error){
+    catch (error) {
 
-        console.log(error);
+        console.error(error);
 
         container.innerHTML =
-        "<h2>Failed to load wonders.</h2>";
+            "<h2 style='text-align:center'>Failed to load wonders.</h2>";
 
     }
+    finally {
 
+        loader.style.display = "none";
+
+    }
 }
 
-function renderWonders(data){
+function renderWonders(data) {
 
-    container.innerHTML = "";
-
-    data.forEach(wonder => {
+    const html = data.map(wonder => {
 
         const image =
             wonder.links?.images?.[0] ||
@@ -45,26 +52,30 @@ function renderWonders(data){
             wonder.description ||
             "No summary available.";
 
-        container.innerHTML += `
+        return `
             <div class="card">
 
-                <img src="${image}" alt="${wonder.name}">
+                <img
+                    src="${image}"
+                    alt="${wonder.name}"
+                    loading="lazy"
+                    decoding="async"
+                    onerror="this.src='https://picsum.photos/400/250'"
+                >
 
                 <div class="card-content">
 
                     <h2>${wonder.name}</h2>
 
                     <p>
-                        <b>Location:</b>
+                        <strong>Location:</strong>
                         ${wonder.location || "Unknown"}
                     </p>
-
-                    <br>
 
                     <button
                         onclick="showSummary(
                             '${wonder.name.replace(/'/g, "\\'")}',
-                            \`${summary}\`
+                            \`${summary.replace(/`/g, "")}\`
                         )"
                     >
                         View Details
@@ -74,12 +85,12 @@ function renderWonders(data){
 
             </div>
         `;
+    }).join("");
 
-    });
-
+    container.innerHTML = html;
 }
 
-function showSummary(name, summary){
+function showSummary(name, summary) {
 
     const modal = document.createElement("div");
 
@@ -97,7 +108,7 @@ function showSummary(name, summary){
     modal.innerHTML = `
         <div style="
             background:white;
-            width:80%;
+            width:90%;
             max-width:700px;
             padding:20px;
             border-radius:10px;
@@ -113,31 +124,49 @@ function showSummary(name, summary){
 
             <br>
 
-            <button onclick="this.closest('div').parentElement.remove()">
+            <button
+                style="
+                    padding:10px 15px;
+                    border:none;
+                    background:#ef4444;
+                    color:white;
+                    border-radius:6px;
+                    cursor:pointer;
+                "
+                onclick="this.closest('.modal-box')?.parentElement.remove() || this.parentElement.parentElement.remove()"
+            >
                 Close
             </button>
 
         </div>
     `;
 
-    document.body.appendChild(modal);
+    modal.addEventListener("click", function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 
+    document.body.appendChild(modal);
 }
 
-searchInput.addEventListener("input", function(){
+let debounceTimer;
 
-    const keyword =
-        this.value.toLowerCase();
+searchInput.addEventListener("input", function() {
 
-    const filtered =
-        wonders.filter(wonder =>
-            wonder.name
-            .toLowerCase()
-            .includes(keyword)
+    clearTimeout(debounceTimer);
+
+    debounceTimer = setTimeout(() => {
+
+        const keyword = this.value.trim().toLowerCase();
+
+        const filtered = wonders.filter(wonder =>
+            wonder.name.toLowerCase().includes(keyword)
         );
 
-    renderWonders(filtered);
+        renderWonders(filtered);
 
+    }, 300);
 });
 
 loadWonders();
