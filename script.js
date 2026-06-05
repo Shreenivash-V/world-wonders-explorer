@@ -58,8 +58,6 @@ function renderWonders(data) {
                 <img
                     src="${image}"
                     alt="${wonder.name}"
-                    loading="lazy"
-                    decoding="async"
                     onerror="this.src='https://picsum.photos/400/250'"
                 >
 
